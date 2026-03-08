@@ -1192,6 +1192,8 @@ class IFGeminiAdvanced:
                     if response_json.get("choices"):
                         for choice in response_json["choices"]:
                             message = choice.get("message", {})
+
+                            # Format 1: message["images"] array (OpenRouter native)
                             if "images" in message and message["images"]:
                                 for img in message["images"]:
                                     base64_string = img.get("image_url", {}).get("url", "")
@@ -1201,9 +1203,49 @@ class IFGeminiAdvanced:
                                         img_bytes = base64.b64decode(base64_string)
                                         all_generated_images_bytes.append(img_bytes)
                                     except Exception as e:
-                                        logger.error(f"Error decoding base64 image from OpenRouter: {e}")
-                    
-                    status_text = f"Generated {len(all_generated_images_bytes)} images from OpenRouter."
+                                        logger.error(f"Error decoding base64 image from images array: {e}")
+
+                            # Format 2: message["content"] as string with markdown base64 images
+                            # e.g. ![image](data:image/png;base64,iVBORw0KGgo...)
+                            # Used by apiyi.com and similar OpenAI-compatible proxies
+                            content = message.get("content", "")
+                            if isinstance(content, str) and "data:image" in content:
+                                import re as _re
+                                # Match markdown image syntax or raw data URIs
+                                b64_pattern = r'data:image/[^;]+;base64,([A-Za-z0-9+/=\s]+)'
+                                for match in _re.finditer(b64_pattern, content):
+                                    b64_data = match.group(1).replace('\n', '').replace('\r', '').replace(' ', '')
+                                    try:
+                                        img_bytes = base64.b64decode(b64_data)
+                                        if len(img_bytes) > 100:  # Sanity check: valid image
+                                            all_generated_images_bytes.append(img_bytes)
+                                            logger.info(f"Extracted inline base64 image ({len(img_bytes)} bytes)")
+                                    except Exception as e:
+                                        logger.error(f"Error decoding inline base64 image: {e}")
+
+                                # Also extract any text content (before/after images)
+                                text_content = _re.sub(r'!\[.*?\]\(data:image/[^)]+\)', '', content).strip()
+                                if text_content:
+                                    all_generated_text.append(text_content)
+
+                            # Format 3: message["content"] as list of parts
+                            elif isinstance(content, list):
+                                for part in content:
+                                    if isinstance(part, dict):
+                                        ptype = part.get("type", "")
+                                        if ptype == "image_url":
+                                            url = part.get("image_url", {}).get("url", "")
+                                            if "base64," in url:
+                                                b64_data = url.split("base64,")[1]
+                                                try:
+                                                    img_bytes = base64.b64decode(b64_data)
+                                                    all_generated_images_bytes.append(img_bytes)
+                                                except Exception as e:
+                                                    logger.error(f"Error decoding image from content parts: {e}")
+                                        elif ptype == "text" and part.get("text"):
+                                            all_generated_text.append(part["text"])
+
+                    status_text = f"Generated {len(all_generated_images_bytes)} images via {effective_base_url}."
 
                 except requests.exceptions.HTTPError as e:
                     error_body = "Could not read error body."
