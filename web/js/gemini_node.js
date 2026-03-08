@@ -260,29 +260,29 @@ app.registerExtension({
 
             // Function to filter models based on operation mode
             nodeType.prototype.filterModelsByOperation = function(allModels, operationMode) {
-                const imageCapableModels = [
-                    "gemini-2.5-flash-image-preview",
-                    "gemini-2.5-flash", 
-                    "gemini-2.5-flash-002"
+                const imageCapablePatterns = [
+                    "gemini-2.5-flash-image",
+                    "gemini-2.5-flash-002",
+                    "gemini-2.5-flash",
+                    "gemini-2.5-pro",
+                    "gemini-3-pro-image",
+                    "gemini-3.1-flash-image",
+                    "nano-banana",
                 ];
-                
-                const textModels = allModels.filter(model => !model.includes("image"));
-                const multimodalModels = allModels; // All models support multimodal
-                
+
                 switch(operationMode) {
                     case "generate_images":
-                        // For image generation, only show image-capable models
-                        return allModels.filter(model => 
-                            imageCapableModels.some(capable => model.includes(capable.split('-').slice(0, -1).join('-')) || model === capable)
+                        // For image generation, show models matching image-capable patterns
+                        return allModels.filter(model =>
+                            imageCapablePatterns.some(pattern => model.startsWith(pattern) || model === pattern)
                         );
-                    
+
                     case "analysis":
-                    case "generate_text": 
-                        // For text analysis, show all models but prioritize text-focused ones
+                    case "generate_text":
+                        // For text/analysis, show all models
                         return allModels;
-                    
+
                     default:
-                        // Default: show all available models
                         return allModels;
                 }
             };
