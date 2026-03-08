@@ -261,8 +261,17 @@ class UniversalClient:
                     "gemini-2.0-pro": "google/gemini-2.0-pro",
                     # Nano Banana models (apiyi.com)
                     "gemini-2.5-flash-image": "google/gemini-2.5-flash-image",
+                    "gemini-2.5-flash-image-oss": "google/gemini-2.5-flash-image-oss",
+                    "gemini-2.5-flash-image-preview-oss": "google/gemini-2.5-flash-image-preview-oss",
                     "gemini-3.1-flash-image-preview": "google/gemini-3.1-flash-image-preview",
                     "gemini-3-pro-image-preview": "google/gemini-3-pro-image-preview",
+                    "gemini-3-pro-image-preview-1k": "google/gemini-3-pro-image-preview-1k",
+                    "gemini-3-pro-image-preview-2k": "google/gemini-3-pro-image-preview-2k",
+                    "gemini-3-pro-image-preview-4k": "google/gemini-3-pro-image-preview-4k",
+                    "gemini-3-pro-image-preview-oss": "google/gemini-3-pro-image-preview-oss",
+                    "nano-banana": "nano-banana",
+                    "nano-banana-2": "nano-banana-2",
+                    "nano-banana-pro": "nano-banana-pro",
                 }
                 base = mapping.get(model_id, f"google/{model_id}")
                 return base + suffix
@@ -505,8 +514,17 @@ class IFGeminiAdvanced:
                         "gemini-2.0-flash",
                         # Nano Banana models (apiyi.com)
                         "gemini-2.5-flash-image",
+                        "gemini-2.5-flash-image-oss",
+                        "gemini-2.5-flash-image-preview-oss",
                         "gemini-3.1-flash-image-preview",
                         "gemini-3-pro-image-preview",
+                        "gemini-3-pro-image-preview-1k",
+                        "gemini-3-pro-image-preview-2k",
+                        "gemini-3-pro-image-preview-4k",
+                        "gemini-3-pro-image-preview-oss",
+                        "nano-banana",
+                        "nano-banana-2",
+                        "nano-banana-pro",
                         # OpenRouter-specific Gemini models
                         "google/gemini-2.5-flash",
                         "google/gemini-2.5-pro",
@@ -969,8 +987,17 @@ class IFGeminiAdvanced:
                     "gemini-2.5-flash-002",
                     # Nano Banana models (via custom endpoints like apiyi.com)
                     "gemini-2.5-flash-image",
+                    "gemini-2.5-flash-image-oss",
+                    "gemini-2.5-flash-image-preview-oss",
                     "gemini-3.1-flash-image-preview",
                     "gemini-3-pro-image-preview",
+                    "gemini-3-pro-image-preview-1k",
+                    "gemini-3-pro-image-preview-2k",
+                    "gemini-3-pro-image-preview-4k",
+                    "gemini-3-pro-image-preview-oss",
+                    "nano-banana",
+                    "nano-banana-2",
+                    "nano-banana-pro",
                 ]
                 if model_name not in image_capable_models:
                     original_model = model_name
