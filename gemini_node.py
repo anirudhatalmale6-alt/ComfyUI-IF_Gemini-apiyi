@@ -87,33 +87,52 @@ def generate_consistent_seed(input_seed=0, use_random=False):
     return hash_int
 
 
+def _is_custom_openai_endpoint(base_url):
+    """Check if the base URL is a custom OpenAI-compatible endpoint (e.g., apiyi.com).
+    Returns True for any explicitly configured base URL that is NOT OpenRouter.
+    Google's default endpoint returns None from get_base_url(), so it won't match."""
+    if not base_url:
+        return False
+    return "openrouter.ai" not in base_url
+
+
 def create_appropriate_client(api_key, api_key_source="unknown", force_openrouter=False, force_gemini=False):
     """
     Create the appropriate client (Gemini or OpenRouter) based on configuration
-    
+
     Args:
         api_key: The API key to use for authentication
         api_key_source: Source type of the API key ("openrouter", "gemini", or "unknown")
         force_openrouter: Force OpenRouter base URL even if not configured
         force_gemini: Force Gemini client even if OpenRouter is configured
-        
+
     Returns:
         Configured client (either Gemini client or OpenRouter client)
     """
-    # If forcing Gemini or using Gemini key, skip OpenRouter checks
-    # but still allow custom base URL (e.g., apiyi.com proxy)
+    base_url = get_base_url()
+
+    # Custom OpenAI-compatible endpoints (e.g., apiyi.com) always use the OpenAI SDK client,
+    # regardless of force_gemini or api_key_source, since they speak OpenAI protocol.
+    if _is_custom_openai_endpoint(base_url):
+        try:
+            from .openrouter_client import create_openrouter_client
+            logger.info(f"Using OpenAI-compatible client for custom endpoint: {base_url}")
+            return create_openrouter_client(api_key, base_url), "openrouter"
+        except Exception as e:
+            logger.error(f"Failed to create client for custom endpoint {base_url}: {e}")
+            logger.info("Falling back to Gemini client (may not work with custom endpoint)")
+
+    # If forcing Gemini or using Gemini key, use standard Gemini client
     if force_gemini or api_key_source == "gemini":
         return create_gemini_client(api_key, api_key_source, force_openrouter=False), "gemini"
-    
-    base_url = get_base_url()
-    
+
     # Determine if we should use OpenRouter client
     use_openrouter = (
-        force_openrouter or 
-        api_key_source == "openrouter" or 
+        force_openrouter or
+        api_key_source == "openrouter" or
         (api_key_source == "unknown" and base_url and "openrouter.ai" in base_url)
     )
-    
+
     if use_openrouter:
         # Use OpenRouter client with OpenAI SDK
         try:
@@ -123,12 +142,10 @@ def create_appropriate_client(api_key, api_key_source="unknown", force_openroute
         except ImportError as e:
             logger.error(f"OpenRouter client not available: {e}")
             logger.info("Falling back to Gemini client (may not work with OpenRouter)")
-            # Fall through to use Gemini client
         except Exception as e:
             logger.error(f"Failed to create OpenRouter client: {e}")
             logger.info("Falling back to Gemini client")
-            # Fall through to use Gemini client
-    
+
     # Use standard Gemini client
     return create_gemini_client(api_key, api_key_source, force_openrouter), "gemini"
 
@@ -596,7 +613,10 @@ class IFGeminiAdvanced:
             else:  # api_provider == "auto"
                 # Auto-detect based on base URL
                 base_url = get_base_url()
-                if base_url and "openrouter.ai" in base_url:
+                if _is_custom_openai_endpoint(base_url):
+                    key_type = "openrouter"
+                    logger.info(f"Using external API key for custom OpenAI endpoint: {base_url}")
+                elif base_url and "openrouter.ai" in base_url:
                     key_type = "openrouter"
                     logger.info("Using external API key as OpenRouter key (auto-detected from base URL)")
                 else:
@@ -933,21 +953,28 @@ class IFGeminiAdvanced:
             # This determination of `client_type` must happen before the model name is validated.
             # We peek ahead to see what client will be created.
             pre_client_type = "gemini" # Default
+            base_url = get_base_url()
             if api_provider == "openrouter":
                 pre_client_type = "openrouter"
+            elif _is_custom_openai_endpoint(base_url):
+                # Custom OpenAI-compatible endpoints (e.g., apiyi.com) use OpenAI protocol
+                pre_client_type = "openrouter"
             elif api_provider == "auto":
-                base_url = get_base_url()
                 if base_url and "openrouter.ai" in base_url:
                     pre_client_type = "openrouter"
 
-            # For OpenRouter, model names are expected to have a prefix like "google/".
-            # For native Gemini, they do not. We adjust if we are using Gemini and the model is not image-capable.
+            # For OpenRouter/custom endpoints, model names are passed as-is.
+            # For native Gemini, validate against known image-capable models.
             if pre_client_type == "gemini":
                 # List of known official Gemini models that support image generation.
                 image_capable_models = [
                     "gemini-2.5-flash-image-preview",
                     "gemini-2.5-flash",
-                    "gemini-2.5-flash-002"
+                    "gemini-2.5-flash-002",
+                    # Nano Banana models (via custom endpoints like apiyi.com)
+                    "gemini-2.5-flash-image",
+                    "gemini-3.1-flash-image-preview",
+                    "gemini-3-pro-image-preview",
                 ]
                 if model_name not in image_capable_models:
                     original_model = model_name
@@ -956,7 +983,7 @@ class IFGeminiAdvanced:
                         f"Model '{original_model}' may not support image generation with the native Gemini client. "
                         f"Switched to '{model_name}'. If using OpenRouter, ensure you select a model with a 'google/' prefix."
                     )
-            # For OpenRouter (`pre_client_type == "openrouter"`), we pass the model name as-is,
+            # For OpenRouter/custom endpoints, we pass the model name as-is,
             # assuming the user has selected a valid image generation model from the list.
 
 
@@ -969,8 +996,10 @@ class IFGeminiAdvanced:
             elif api_provider == "gemini":
                 env_key_name = "GEMINI_API_KEY"
             else:  # auto mode - check both
-                base_url = get_base_url()
-                if base_url and "openrouter.ai" in base_url:
+                if _is_custom_openai_endpoint(base_url):
+                    # Custom endpoints (apiyi.com) use GEMINI_API_KEY
+                    env_key_name = "GEMINI_API_KEY"
+                elif base_url and "openrouter.ai" in base_url:
                     env_key_name = "OPENROUTER_API_KEY"
                 else:
                     env_key_name = "GEMINI_API_KEY"
@@ -1024,8 +1053,12 @@ class IFGeminiAdvanced:
                     force_gemini = True
                 else:  # auto mode
                     # Determine key type based on base URL
-                    base_url = get_base_url()
-                    if base_url and "openrouter.ai" in base_url:
+                    if _is_custom_openai_endpoint(base_url):
+                        # Custom endpoints (apiyi.com) use OpenAI protocol
+                        client_key_type = "openrouter"
+                        force_openrouter = True
+                        force_gemini = False
+                    elif base_url and "openrouter.ai" in base_url:
                         client_key_type = "openrouter"
                         force_openrouter = True
                         force_gemini = False
@@ -1099,7 +1132,9 @@ class IFGeminiAdvanced:
                 if sequential_generation:
                     logger.warning("Sequential image generation is not fully supported with OpenRouter and will behave like standard batch generation.")
 
-                api_url = "https://openrouter.ai/api/v1/chat/completions"
+                # Use actual base URL (supports OpenRouter, apiyi.com, and other custom endpoints)
+                effective_base_url = base_url or "https://openrouter.ai/api/v1"
+                api_url = f"{effective_base_url.rstrip('/')}/chat/completions"
                 headers = {
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
