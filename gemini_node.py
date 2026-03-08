@@ -87,42 +87,41 @@ def generate_consistent_seed(input_seed=0, use_random=False):
     return hash_int
 
 
-def _is_custom_openai_endpoint(base_url):
-    """Check if the base URL is a custom OpenAI-compatible endpoint (e.g., apiyi.com).
-    Returns True for any explicitly configured base URL that is NOT OpenRouter.
-    Google's default endpoint returns None from get_base_url(), so it won't match."""
+def _is_openai_compatible_endpoint(base_url):
+    """Check if a custom base URL uses OpenAI-compatible protocol (/v1/chat/completions).
+    URLs ending with /v1 are OpenAI-compatible (e.g., vip.apiyi.com/v1).
+    Other custom URLs use Google native protocol (e.g., api.apiyi.com)."""
     if not base_url:
         return False
-    return "openrouter.ai" not in base_url
+    if "openrouter.ai" in base_url:
+        return False  # OpenRouter handled separately
+    return base_url.rstrip('/').endswith('/v1')
 
 
 def create_appropriate_client(api_key, api_key_source="unknown", force_openrouter=False, force_gemini=False):
     """
-    Create the appropriate client (Gemini or OpenRouter) based on configuration
+    Create the appropriate client (Gemini or OpenRouter) based on configuration.
 
-    Args:
-        api_key: The API key to use for authentication
-        api_key_source: Source type of the API key ("openrouter", "gemini", or "unknown")
-        force_openrouter: Force OpenRouter base URL even if not configured
-        force_gemini: Force Gemini client even if OpenRouter is configured
-
-    Returns:
-        Configured client (either Gemini client or OpenRouter client)
+    Supports three endpoint types:
+    - Google native (genai SDK): default endpoint or custom URLs like api.apiyi.com
+    - OpenAI-compatible: custom URLs ending in /v1 like vip.apiyi.com/v1
+    - OpenRouter: openrouter.ai URLs
     """
     base_url = get_base_url()
 
-    # Custom OpenAI-compatible endpoints (e.g., apiyi.com) always use the OpenAI SDK client,
-    # regardless of force_gemini or api_key_source, since they speak OpenAI protocol.
-    if _is_custom_openai_endpoint(base_url):
+    # OpenAI-compatible custom endpoints (URL ends with /v1, e.g. vip.apiyi.com/v1)
+    # These use the OpenAI chat completions protocol, not Google genai protocol.
+    if _is_openai_compatible_endpoint(base_url):
         try:
             from .openrouter_client import create_openrouter_client
-            logger.info(f"Using OpenAI-compatible client for custom endpoint: {base_url}")
+            logger.info(f"Using OpenAI-compatible client for endpoint: {base_url}")
             return create_openrouter_client(api_key, base_url), "openrouter"
         except Exception as e:
-            logger.error(f"Failed to create client for custom endpoint {base_url}: {e}")
-            logger.info("Falling back to Gemini client (may not work with custom endpoint)")
+            logger.error(f"Failed to create OpenAI client for {base_url}: {e}")
+            logger.info("Falling back to Gemini client")
 
-    # If forcing Gemini or using Gemini key, use standard Gemini client
+    # If forcing Gemini or using Gemini key, use Gemini client
+    # (custom base URLs like api.apiyi.com are handled inside create_gemini_client)
     if force_gemini or api_key_source == "gemini":
         return create_gemini_client(api_key, api_key_source, force_openrouter=False), "gemini"
 
@@ -134,19 +133,16 @@ def create_appropriate_client(api_key, api_key_source="unknown", force_openroute
     )
 
     if use_openrouter:
-        # Use OpenRouter client with OpenAI SDK
         try:
             from .openrouter_client import create_openrouter_client
             openrouter_base_url = base_url or "https://openrouter.ai/api/v1"
             return create_openrouter_client(api_key, openrouter_base_url), "openrouter"
         except ImportError as e:
             logger.error(f"OpenRouter client not available: {e}")
-            logger.info("Falling back to Gemini client (may not work with OpenRouter)")
         except Exception as e:
             logger.error(f"Failed to create OpenRouter client: {e}")
-            logger.info("Falling back to Gemini client")
 
-    # Use standard Gemini client
+    # Use standard Gemini client (handles custom base URLs like api.apiyi.com)
     return create_gemini_client(api_key, api_key_source, force_openrouter), "gemini"
 
 
@@ -613,7 +609,7 @@ class IFGeminiAdvanced:
             else:  # api_provider == "auto"
                 # Auto-detect based on base URL
                 base_url = get_base_url()
-                if _is_custom_openai_endpoint(base_url):
+                if _is_openai_compatible_endpoint(base_url):
                     key_type = "openrouter"
                     logger.info(f"Using external API key for custom OpenAI endpoint: {base_url}")
                 elif base_url and "openrouter.ai" in base_url:
@@ -956,7 +952,7 @@ class IFGeminiAdvanced:
             base_url = get_base_url()
             if api_provider == "openrouter":
                 pre_client_type = "openrouter"
-            elif _is_custom_openai_endpoint(base_url):
+            elif _is_openai_compatible_endpoint(base_url):
                 # Custom OpenAI-compatible endpoints (e.g., apiyi.com) use OpenAI protocol
                 pre_client_type = "openrouter"
             elif api_provider == "auto":
@@ -996,7 +992,7 @@ class IFGeminiAdvanced:
             elif api_provider == "gemini":
                 env_key_name = "GEMINI_API_KEY"
             else:  # auto mode - check both
-                if _is_custom_openai_endpoint(base_url):
+                if _is_openai_compatible_endpoint(base_url):
                     # Custom endpoints (apiyi.com) use GEMINI_API_KEY
                     env_key_name = "GEMINI_API_KEY"
                 elif base_url and "openrouter.ai" in base_url:
@@ -1053,7 +1049,7 @@ class IFGeminiAdvanced:
                     force_gemini = True
                 else:  # auto mode
                     # Determine key type based on base URL
-                    if _is_custom_openai_endpoint(base_url):
+                    if _is_openai_compatible_endpoint(base_url):
                         # Custom endpoints (apiyi.com) use OpenAI protocol
                         client_key_type = "openrouter"
                         force_openrouter = True

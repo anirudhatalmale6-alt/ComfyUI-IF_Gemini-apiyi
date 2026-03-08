@@ -30,6 +30,12 @@ GEMINI_API_KEY=your_api_key_here
 # apiyi.com / Nano Banana Configuration
 # Get your API key from https://apiyi.com
 # Uncomment and set both lines below to use Nano Banana models:
+#
+# Recommended: Google native endpoint (best compatibility)
+# GEMINI_API_KEY=your_apiyi_api_key_here
+# GEMINI_BASE_URL=https://api.apiyi.com
+#
+# Alternative: OpenAI-compatible endpoint
 # GEMINI_API_KEY=your_apiyi_api_key_here
 # GEMINI_BASE_URL=https://vip.apiyi.com/v1
 #
