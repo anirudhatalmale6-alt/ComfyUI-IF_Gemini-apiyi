@@ -504,14 +504,14 @@ class IFGeminiAdvanced:
                 ),
                 "model_name": (
                     [
-                        # Standard Gemini models
-                        "gemini-2.5-flash",
-                        "gemini-2.5-pro",
-                        "gemini-2.5-flash-002",
-                        "gemini-2.5-flash-image-preview",
-                        "gemini-2.0-flash-exp",
-                        "gemini-2.0-pro",
-                        "gemini-2.0-flash",
+                        # Standard Gemini models (uncomment to re-enable)
+                        # "gemini-2.5-flash",
+                        # "gemini-2.5-pro",
+                        # "gemini-2.5-flash-002",
+                        # "gemini-2.5-flash-image-preview",
+                        # "gemini-2.0-flash-exp",
+                        # "gemini-2.0-pro",
+                        # "gemini-2.0-flash",
                         # Nano Banana models (apiyi.com)
                         "gemini-2.5-flash-image",
                         "gemini-2.5-flash-image-oss",
@@ -525,14 +525,14 @@ class IFGeminiAdvanced:
                         "nano-banana",
                         "nano-banana-2",
                         "nano-banana-pro",
-                        # OpenRouter-specific Gemini models
-                        "google/gemini-2.5-flash",
-                        "google/gemini-2.5-pro",
-                        "google/gemini-2.5-flash-image-preview",
-                        "google/gemini-2.5-flash-image-preview:free",
-                        "google/gemini-2.0-flash-exp",
+                        # OpenRouter-specific Gemini models (uncomment to re-enable)
+                        # "google/gemini-2.5-flash",
+                        # "google/gemini-2.5-pro",
+                        # "google/gemini-2.5-flash-image-preview",
+                        # "google/gemini-2.5-flash-image-preview:free",
+                        # "google/gemini-2.0-flash-exp",
                     ],
-                    {"default": "gemini-2.5-flash"},
+                    {"default": "gemini-2.5-flash-image"},
                 ),
                 "temperature": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 1.0, "step": 0.01}),
             },
