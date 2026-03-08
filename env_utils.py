@@ -291,10 +291,13 @@ def get_effective_api_key():
             logger.warning("Using Gemini API key with OpenRouter base URL (this may not work)")
             return gemini_key, "gemini"
     else:
-        # No custom base URL or non-OpenRouter base URL
-        # Prefer Gemini key for standard endpoint
+        # No custom base URL or non-OpenRouter base URL (e.g., apiyi.com proxy)
+        # Prefer Gemini key
         if gemini_key:
-            logger.info("Using Gemini API key with standard endpoint")
+            if base_url:
+                logger.info(f"Using Gemini API key with custom endpoint: {base_url}")
+            else:
+                logger.info("Using Gemini API key with standard endpoint")
             return gemini_key, "gemini"
         elif openrouter_key:
             logger.info("Using OpenRouter API key with standard endpoint (may not work without OpenRouter URL)")

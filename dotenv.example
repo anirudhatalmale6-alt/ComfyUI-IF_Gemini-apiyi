@@ -27,5 +27,16 @@
 # Gemini API Key - Get from https://ai.google.dev/
 GEMINI_API_KEY=your_api_key_here
 
+# apiyi.com / Nano Banana Configuration
+# Get your API key from https://apiyi.com
+# Uncomment and set both lines below to use Nano Banana models:
+# GEMINI_API_KEY=your_apiyi_api_key_here
+# GEMINI_BASE_URL=https://vip.apiyi.com/v1
+#
+# Then select one of these models in the node:
+#   gemini-2.5-flash-image        (Nano Banana   - $0.025/call)
+#   gemini-3.1-flash-image-preview  (Nano Banana 2 - $0.03/call)
+#   gemini-3-pro-image-preview    (Nano Banana Pro - $0.05/call)
+
 # Other API keys can be added here
 

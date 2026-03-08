@@ -100,9 +100,9 @@ def create_appropriate_client(api_key, api_key_source="unknown", force_openroute
     Returns:
         Configured client (either Gemini client or OpenRouter client)
     """
-    # If forcing Gemini, skip OpenRouter checks entirely
+    # If forcing Gemini or using Gemini key, skip OpenRouter checks
+    # but still allow custom base URL (e.g., apiyi.com proxy)
     if force_gemini or api_key_source == "gemini":
-        # Use standard Gemini client without any base URL modifications
         return create_gemini_client(api_key, api_key_source, force_openrouter=False), "gemini"
     
     base_url = get_base_url()
@@ -150,13 +150,15 @@ def create_gemini_client(api_key, api_key_source="unknown", force_openrouter=Fal
     
     # Mask the API key for logging
     masked_key = api_key[:5] + "..." if len(api_key) > 5 else "****"
-    
-    # If api_key_source is explicitly "gemini", don't use any custom base URL
-    if api_key_source == "gemini":
+
+    base_url = get_base_url()
+
+    # If api_key_source is explicitly "gemini" and no custom base URL is set,
+    # use standard Gemini endpoint. When a custom base URL is set (e.g., apiyi.com),
+    # always use it regardless of key source.
+    if api_key_source == "gemini" and not base_url:
         logger.info(f"Creating standard Gemini client (API key: {masked_key}, source: gemini)")
         return genai.Client(api_key=api_key)
-    
-    base_url = get_base_url()
     
     # Force OpenRouter URL if using OpenRouter key and no base URL is set
     if force_openrouter and not base_url and api_key_source == "openrouter":
@@ -244,6 +246,10 @@ class UniversalClient:
                     "gemini-2.0-flash-exp": "google/gemini-2.0-flash-exp",
                     "gemini-2.0-flash": "google/gemini-2.0-flash",
                     "gemini-2.0-pro": "google/gemini-2.0-pro",
+                    # Nano Banana models (apiyi.com)
+                    "gemini-2.5-flash-image": "google/gemini-2.5-flash-image",
+                    "gemini-3.1-flash-image-preview": "google/gemini-3.1-flash-image-preview",
+                    "gemini-3-pro-image-preview": "google/gemini-3-pro-image-preview",
                 }
                 base = mapping.get(model_id, f"google/{model_id}")
                 return base + suffix
@@ -484,6 +490,10 @@ class IFGeminiAdvanced:
                         "gemini-2.0-flash-exp",
                         "gemini-2.0-pro",
                         "gemini-2.0-flash",
+                        # Nano Banana models (apiyi.com)
+                        "gemini-2.5-flash-image",
+                        "gemini-3.1-flash-image-preview",
+                        "gemini-3-pro-image-preview",
                         # OpenRouter-specific Gemini models
                         "google/gemini-2.5-flash",
                         "google/gemini-2.5-pro",
@@ -503,7 +513,8 @@ class IFGeminiAdvanced:
                 "sequential_generation": ("BOOLEAN", {"default": False}),
                 "batch_count": ("INT", {"default": 4, "min": 1, "max": 20}),
                 "aspect_ratio": (
-                    ["none", "1:1", "16:9", "9:16", "4:3", "3:4", "5:4", "4:5"],
+                    ["none", "1:1", "16:9", "9:16", "4:3", "3:4", "5:4", "4:5",
+                     "2:3", "3:2", "9:21", "21:9", "16:10", "10:16"],
                     {"default": "none"},
                 ),
                 "api_provider": (
@@ -1068,6 +1079,12 @@ class IFGeminiAdvanced:
                 "3:4": (896, 1280),  # Standard portrait
                 "5:4": (1024, 819),  # Medium landscape format
                 "4:5": (819, 1024),  # Medium portrait format
+                "2:3": (768, 1152),  # Portrait
+                "3:2": (1152, 768),  # Landscape
+                "9:21": (576, 1344),  # Tall portrait
+                "21:9": (1344, 576),  # Ultra widescreen
+                "16:10": (1280, 800),  # Widescreen landscape
+                "10:16": (800, 1280),  # Widescreen portrait
             }
 
             # Get target dimensions based on aspect ratio
